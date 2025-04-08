@@ -42,6 +42,34 @@ def ames_histogram(ames):
     
     interact(plot_histogram, bins=widgets.IntSlider(min=5, max=50, step=5, value=25, description='Bins:'));
 
+def penguins_box_plots(penguins):
+    quantitative_columns = ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
+    
+    def plot_boxplot(variable):
+        plt.figure(figsize=(12, 6))
+        sns.boxplot(data=penguins, x="species", y=variable, hue="species")
+        plt.ylabel(variable.replace('_', ' ').title())
+        plt.title(f"Box Plot of {variable} by Species")
+        plt.xticks(rotation=45)
+        plt.show()
+    
+    interact(plot_boxplot,
+             variable=widgets.Dropdown(options=quantitative_columns, description='Variable:'))
+
+def penguins_violin_plots(penguins):
+    quantitative_columns = ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
+    
+    def plot_violinplot(variable):
+        plt.figure(figsize=(12, 6))
+        sns.violinplot(data=penguins, x="species", y=variable, hue="species")
+        plt.ylabel(variable.replace('_', ' ').title())
+        plt.title(f"Violin Plot of {variable} by Species")
+        plt.xticks(rotation=45)
+        plt.show()
+    
+    interact(plot_violinplot,
+             variable=widgets.Dropdown(options=quantitative_columns, description='Variable:'))
+
 def penguins_histogram(penguins):
     quantitative_columns = ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
     
@@ -55,3 +83,20 @@ def penguins_histogram(penguins):
     interact(plot_histogram,
              variable=widgets.Dropdown(options=quantitative_columns, description='Variable:'),
              bins=widgets.IntSlider(min=5, max=50, step=5, value=25, description='Bins:'))
+
+def penguins_run_anova(penguins):
+    quantitative_columns = ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
+        
+    def run_anova(feature):
+        feature_groups = []
+        for species in penguins["species"].unique():
+            group = penguins[penguins["species"] == species][feature]
+            feature_groups.append(group)
+        result = stats.f_oneway(*feature_groups)
+    
+        print(f"ANOVA on: {feature}")
+        print(f"F-statistic: {result.statistic:.2f}")
+        print(f"p-value: {result.pvalue:.5f}")
+    
+    # Display interactive dropdown
+    widgets.interact(run_anova, feature=widgets.Dropdown(options=quantitative_columns, description="Feature:"))
