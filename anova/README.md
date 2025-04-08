@@ -1,3 +1,3 @@
-# ECC-Statistics: ANOVA and Non-Parametric Tests Module
+# ECC-Statistics: ANOVA Module
 
-Repository for ANOVA and Non-Parametric Tests Module for El Camino College
+Repository for the ANOVA Module for El Camino College
