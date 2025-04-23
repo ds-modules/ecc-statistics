@@ -20,14 +20,14 @@ def fair_die_variances(n_samples, sample_size, population):
     sample_variances = [np.var(np.random.choice(population, size=sample_size), ddof=1) for _ in range(n_samples)]
 
     plt.figure(figsize=(12, 6))
-    sns.histplot(x=sample_variances, bins=30, color='red', edgecolor='black', stat='frequency')
+    sns.histplot(x=sample_variances, bins=15, color='red', edgecolor='black', stat='frequency')
     plt.axvline(np.mean(sample_variances), color='green', linestyle='dashed')
     plt.title("Distribution of Sample Variances (n=5 die rolls)")
     plt.xlabel("Sample Variances")
     plt.ylabel("Frequency")
     
-    plt.text(np.mean(sample_variances)+0.1, 3250, f"Mean: {np.mean(sample_variances):.2f}", color='green')
-    plt.text(6, 3100, "Skewed", fontsize=20, color='black')
+    plt.text(np.mean(sample_variances)+0.2, 2500, f"Mean: {np.mean(sample_variances):.2f}", color='green')
+    plt.text(6, 2300, "Skewed", fontsize=24, color='black')
     plt.show()
 
 def fair_die_proportions(n_samples, sample_size, population):
