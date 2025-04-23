@@ -39,23 +39,28 @@ def ames_violin_plots(ames):
     output = widgets.Output()
     neighborhood_medians = ames.groupby("Neighborhood", observed=True)["SalePrice"].median().sort_values(ascending=False)
     neighborhoods = neighborhood_medians.index.tolist()
-    midpoint = len(neighborhoods) // 2
+    third = len(neighborhoods) // 3
 
-    def plot_half(half):
+    def plot_third(segment):
         with output:
             clear_output(wait=True)
-            subset = neighborhoods[:midpoint] if half == "First Half" else neighborhoods[midpoint:]
+            if segment == "First Third":
+                subset = neighborhoods[:third]
+            elif segment == "Second Third":
+                subset = neighborhoods[third:2*third]
+            else:
+                subset = neighborhoods[2*third:]
             filtered_ames = ames[ames["Neighborhood"].isin(subset)]
             fig = px.violin(filtered_ames, x="Neighborhood", y="SalePrice", color="Neighborhood", box=True,
                             category_orders={"Neighborhood": subset},
-                            title=f"Violin Plots of Sale Prices ({half})")
+                            title=f"Violin Plots of Sale Prices ({segment})")
             fig.update_layout(xaxis_tickangle=-45)
             fig.show()
 
-    half_selector = widgets.ToggleButtons(options=["First Half", "Second Half"], description="Show:")
-    display(widgets.VBox([half_selector, output]))
-    plot_half(half_selector.value)
-    half_selector.observe(lambda change: plot_half(change['new']), names='value')
+    third_selector = widgets.ToggleButtons(options=["First Third", "Second Third", "Last Third"], description="Show:")
+    display(widgets.VBox([third_selector, output]))
+    plot_third(third_selector.value)
+    third_selector.observe(lambda change: plot_third(change['new']), names='value')
 
 
 def ames_histogram(ames):
