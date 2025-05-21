@@ -78,6 +78,7 @@ def mean_range_tables(calculate_mean, calculate_range, calculate_probability):
         frequency = mean_counts[mean_val]
         probability = calculate_probability(frequency, total_samples)
         print(f"| {mean_val:<15.2f} | {frequency:<9} | {probability:<16.4f} |")
+    print(f"Mean of Sample Means: {np.mean(sample_means)}")
     
     print('\n')
     print("--- Probability Distribution of Sample Range ---")
@@ -89,3 +90,4 @@ def mean_range_tables(calculate_mean, calculate_range, calculate_probability):
         frequency = range_counts[range_val]
         probability = frequency / total_samples
         print(f"| {range_val:<16.2f} | {frequency:<9} | {probability:<16.4f} |")
+    print(f"Mean of Sample Ranges: {np.mean(sample_ranges)}")
