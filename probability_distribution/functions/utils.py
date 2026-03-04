@@ -122,10 +122,13 @@ def plot_poisson_cdf_example(lam=5, k_max=2):
     plt.figure(figsize=(9, 4))
     colors = ['orange' if k <= k_max else 'steelblue' for k in k_vals]
     plt.bar(k_vals, pmf_vals, color=colors, edgecolor='black')
-    plt.axhline(cdf_val, color='green', linestyle='--', alpha=0.8, label=f'P(X ≤ {k_max}) = {cdf_val:.4f}')
+    plt.axhline(cdf_val, color='green', linestyle='--', alpha=0.8, label=f'P(X ≤ {k_max}) = {cdf_val:.4f} (accumulation)')
+    # Vertical line at the right edge of the bin at k_max (default bar width 0.8)
+    x_end = k_max + 0.5
+    plt.plot([x_end, x_end], [0, cdf_val], color='green', linestyle='--', alpha=0.8)
     plt.xlabel("k (number of events)")
     plt.ylabel("P(X = k)")
-    plt.title(f"Poisson(λ={lam}) — shaded bars are k=0,...,{k_max}; sum = P(X ≤ {k_max})")
+    plt.title(f"Poisson(λ={lam}) — orange bars k=0,...,{k_max}; green line = accumulation (sum) = P(X ≤ {k_max})")
     plt.xticks(k_vals)
     plt.legend()
     plt.tight_layout()
