@@ -87,3 +87,82 @@ def interact_ci(population):
     box = widgets.VBox([widgets.HBox([n_slider, level_slider]), out])
     display(box)
     on_change()
+
+
+def plot_many_confidence_intervals(population, n, confidence_level=0.85, n_intervals=40):
+    """
+    Plot many confidence intervals for the population mean and highlight which
+    intervals contain the true mean.
+
+    This is used in the student notebook to illustrate that the true value is
+    not always in the center of the interval, but is likely to be somewhere
+    inside most of them.
+
+    Parameters
+    ----------
+    population : array-like
+        The population values to sample from.
+    n : int
+        Sample size for each interval.
+    confidence_level : float, optional
+        Confidence level for each interval (e.g. 0.85 for 85%).
+    n_intervals : int, optional
+        Number of intervals to generate and plot.
+    """
+    true_mean = np.mean(population)
+    alpha = 1 - confidence_level
+    z = stats.norm.ppf(1 - alpha / 2)
+
+    ci_lowers, ci_uppers = [], []
+    for _ in range(n_intervals):
+        sample = np.random.choice(population, size=n, replace=False)
+        sample_mean = np.mean(sample)
+        se = np.std(sample, ddof=1) / np.sqrt(n)
+        ci_lowers.append(sample_mean - z * se)
+        ci_uppers.append(sample_mean + z * se)
+
+    contains = sum(a <= true_mean <= b for a, b in zip(ci_lowers, ci_uppers))
+
+    plt.figure(figsize=(8, 6))
+    for i, (a, b) in enumerate(zip(ci_lowers, ci_uppers)):
+        color = "steelblue" if a <= true_mean <= b else "coral"
+        plt.plot([a, b], [i, i], color=color, linewidth=1.5)
+
+    plt.axvline(true_mean, color="green", linestyle="--", linewidth=2, label="True population mean")
+    plt.xlabel("Study hours per week")
+    plt.ylabel("Sample (each line is a different sample)")
+    plt.title(
+        f"{n_intervals} different {int(confidence_level * 100)}% CIs: "
+        f"{contains} contain the true mean (~{100 * contains / n_intervals:.0f}% coverage)"
+    )
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_bootstrap_mean_distribution(boot_means, boot_ci_lower, boot_ci_upper, sample_mean):
+    """
+    Plot the bootstrap distribution of the sample mean with CI endpoints and the sample mean.
+
+    Parameters
+    ----------
+    boot_means : array-like
+        Bootstrap sample means.
+    boot_ci_lower : float
+        Lower endpoint of the bootstrap confidence interval.
+    boot_ci_upper : float
+        Upper endpoint of the bootstrap confidence interval.
+    sample_mean : float
+        The original sample mean.
+    """
+    plt.figure(figsize=(8, 5))
+    plt.hist(boot_means, bins=30, density=False, color="skyblue", edgecolor="white")
+    plt.axvline(boot_ci_lower, color="red", linestyle="--", label="2.5% percentile")
+    plt.axvline(boot_ci_upper, color="red", linestyle="--", label="97.5% percentile")
+    plt.axvline(sample_mean, color="black", linestyle=":", label="Sample mean")
+    plt.xlabel("Bootstrap sample mean (hours)")
+    plt.ylabel("Frequency")
+    plt.title("Bootstrap Distribution of the Sample Mean")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
