@@ -168,3 +168,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Otter grader.export default timestamp zips (notebooks use export_path=... to overwrite one file)
+confidence_interval/dist/student/confidence_interval_2*.zip
