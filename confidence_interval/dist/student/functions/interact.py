@@ -12,13 +12,14 @@ from matplotlib.lines import Line2D
 from IPython.display import display
 
 
-def _update_ci_plot(population, n, confidence_level, out):
+def _update_ci_plot(population, n, confidence_level, out, show_true_mean=False):
     """Draw a sample, compute CI, and plot histogram with CI and width."""
     with out:
         out.clear_output(wait=True)
         sample = np.random.choice(population, size=n, replace=False)
         sample_mean = np.mean(sample)
         sample_std = np.std(sample, ddof=1)
+        true_mean = float(np.mean(population))
 
         alpha = 1 - confidence_level
         z = stats.norm.ppf(1 - alpha / 2)
@@ -39,6 +40,15 @@ def _update_ci_plot(population, n, confidence_level, out):
         ax.axvline(ci_low, color="#c44e52", linestyle="-", linewidth=2.5, label=f"{int(confidence_level * 100)}% CI")
         ax.axvline(ci_high, color="#c44e52", linestyle="-", linewidth=2.5)
         ax.axvline(sample_mean, color="#2d2d2d", linestyle="--", linewidth=2, label=f"Sample mean = {sample_mean:.2f}")
+        if show_true_mean:
+            ax.axvline(
+                true_mean,
+                color="#1b7f3a",
+                linestyle="-",
+                linewidth=2.5,
+                zorder=4,
+                label=f"True population mean = {true_mean:.2f}",
+            )
 
         ax.set_xlabel("Study hours", fontsize=12, color="#333")
         ax.set_ylabel("Density", fontsize=12, color="#333")
@@ -64,7 +74,11 @@ def _update_ci_plot(population, n, confidence_level, out):
 
 
 def interact_ci(population):
-    """Run the interactive widget: histogram, CI lines, and width update with n and confidence level."""
+    """Run the interactive widget: histogram, CI lines, and width update with n and confidence level.
+
+    The Resample button draws a new random sample without changing the sliders.
+    Toggle Show true mean to overlay the population mean the CI is estimating.
+    """
     n_slider = widgets.IntSlider(
         min=10, max=200, step=10, value=40,
         description="Sample size (n):",
@@ -77,17 +91,94 @@ def interact_ci(population):
         style={"description_width": "140px"},
         layout=widgets.Layout(width="320px"),
     )
+    resample_btn = widgets.Button(
+        description="Resample",
+        tooltip="Draw a new random sample with the same n and confidence level",
+        layout=widgets.Layout(width="120px"),
+    )
+    true_mean_toggle = widgets.Checkbox(
+        value=False,
+        description="Show true mean",
+        indent=False,
+        style={"description_width": "initial"},
+        layout=widgets.Layout(margin="0 0 0 16px"),
+    )
     out = widgets.Output()
 
     def on_change(change=None):
-        _update_ci_plot(population, n_slider.value, level_slider.value, out)
+        _update_ci_plot(
+            population,
+            n_slider.value,
+            level_slider.value,
+            out,
+            show_true_mean=true_mean_toggle.value,
+        )
+
+    def on_resample(_):
+        on_change()
 
     n_slider.observe(on_change, names="value")
     level_slider.observe(on_change, names="value")
+    true_mean_toggle.observe(on_change, names="value")
+    resample_btn.on_click(on_resample)
 
-    box = widgets.VBox([widgets.HBox([n_slider, level_slider]), out])
+    controls_row2 = widgets.HBox([resample_btn, true_mean_toggle])
+    box = widgets.VBox([
+        widgets.HBox([n_slider, level_slider]),
+        controls_row2,
+        out,
+    ])
     display(box)
     on_change()
+
+
+def _render_many_cis_plot(ax, population, n, confidence_level, n_intervals):
+    """Draw many CIs on *ax* (new random samples on each call)."""
+    population = np.asarray(population)
+    if n > len(population):
+        raise ValueError(f"Sample size n={n} cannot exceed population size {len(population)}.")
+
+    true_mean = float(np.mean(population))
+    alpha = 1 - confidence_level
+    z = stats.norm.ppf(1 - alpha / 2)
+
+    ci_lowers, ci_uppers = [], []
+    for _ in range(n_intervals):
+        sample = np.random.choice(population, size=n, replace=False)
+        sample_mean = np.mean(sample)
+        se = np.std(sample, ddof=1) / np.sqrt(n)
+        ci_lowers.append(sample_mean - z * se)
+        ci_uppers.append(sample_mean + z * se)
+
+    contains = sum(a <= true_mean <= b for a, b in zip(ci_lowers, ci_uppers))
+
+    for i, (a, b) in enumerate(zip(ci_lowers, ci_uppers)):
+        color = "steelblue" if a <= true_mean <= b else "coral"
+        ax.plot([a, b], [i, i], color=color, linewidth=1.5)
+
+    ax.axvline(true_mean, color="green", linestyle="--", linewidth=2)
+    ax.set_xlabel("Study hours per week")
+    ax.set_ylabel("Sample (each line is a different sample)")
+    ax.set_title(
+        f"{n_intervals} different {int(confidence_level * 100)}% CIs: "
+        f"{contains} contain the true mean (~{100 * contains / n_intervals:.0f}% coverage)"
+    )
+    pct = int(confidence_level * 100)
+    legend_handles = [
+        Line2D(
+            [0], [0], color="steelblue", linewidth=2.5,
+            label=f"Blue: {pct}% CI contains true mean",
+        ),
+        Line2D(
+            [0], [0], color="coral", linewidth=2.5,
+            label=f"Orange: {pct}% CI does not contain true mean",
+        ),
+        Line2D(
+            [0], [0], color="green", linestyle="--", linewidth=2,
+            label="Green dashed: true population mean",
+        ),
+    ]
+    ax.legend(handles=legend_handles, loc="lower right", frameon=True)
 
 
 def plot_many_confidence_intervals(population, n, confidence_level=0.85, n_intervals=40):
@@ -110,51 +201,93 @@ def plot_many_confidence_intervals(population, n, confidence_level=0.85, n_inter
     n_intervals : int, optional
         Number of intervals to generate and plot.
     """
-    true_mean = np.mean(population)
-    alpha = 1 - confidence_level
-    z = stats.norm.ppf(1 - alpha / 2)
-
-    ci_lowers, ci_uppers = [], []
-    for _ in range(n_intervals):
-        sample = np.random.choice(population, size=n, replace=False)
-        sample_mean = np.mean(sample)
-        se = np.std(sample, ddof=1) / np.sqrt(n)
-        ci_lowers.append(sample_mean - z * se)
-        ci_uppers.append(sample_mean + z * se)
-
-    contains = sum(a <= true_mean <= b for a, b in zip(ci_lowers, ci_uppers))
-
-    plt.figure(figsize=(8, 6))
-    for i, (a, b) in enumerate(zip(ci_lowers, ci_uppers)):
-        color = "steelblue" if a <= true_mean <= b else "coral"
-        plt.plot([a, b], [i, i], color=color, linewidth=1.5)
-
-    plt.axvline(true_mean, color="green", linestyle="--", linewidth=2)
-    plt.xlabel("Study hours per week")
-    plt.ylabel("Sample (each line is a different sample)")
-    plt.title(
-        f"{n_intervals} different {int(confidence_level * 100)}% CIs: "
-        f"{contains} contain the true mean (~{100 * contains / n_intervals:.0f}% coverage)"
-    )
-    # Legend: steelblue = interval covers true mean; coral = interval misses (true mean is outside)
-    pct = int(confidence_level * 100)
-    legend_handles = [
-        Line2D(
-            [0], [0], color="steelblue", linewidth=2.5,
-            label=f"Blue: {pct}% CI contains true mean",
-        ),
-        Line2D(
-            [0], [0], color="coral", linewidth=2.5,
-            label=f"Orange: {pct}% CI does not contain true mean",
-        ),
-        Line2D(
-            [0], [0], color="green", linestyle="--", linewidth=2,
-            label="Green dashed: true population mean",
-        ),
-    ]
-    plt.legend(handles=legend_handles, loc="lower right", frameon=True)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    _render_many_cis_plot(ax, population, n, confidence_level, n_intervals)
     plt.tight_layout()
     plt.show()
+
+
+def interact_many_cis(population):
+    """
+    Interactive coverage plot: sliders for sample size, confidence level, and number
+    of intervals, plus Redraw for a new set of random samples.
+
+    Use this instead of re-running a large code cell when exploring coverage.
+    """
+    pop = np.asarray(population)
+    n_max = min(200, len(pop))
+    if n_max < 10:
+        raise ValueError("Population must have at least 10 values.")
+
+    step_n = 5 if n_max <= 60 else 10
+    raw_default_n = min(60, n_max)
+    default_n = max(10, (raw_default_n // step_n) * step_n)
+    if default_n > n_max:
+        default_n = max(10, n_max - (n_max % step_n))
+
+    n_slider = widgets.IntSlider(
+        min=10,
+        max=n_max,
+        step=step_n,
+        value=default_n,
+        description="Sample size (n):",
+        style={"description_width": "140px"},
+        layout=widgets.Layout(width="320px"),
+    )
+    level_slider = widgets.FloatSlider(
+        min=0.80,
+        max=0.99,
+        step=0.01,
+        value=0.85,
+        description="Confidence level:",
+        style={"description_width": "140px"},
+        layout=widgets.Layout(width="320px"),
+    )
+    n_int_slider = widgets.IntSlider(
+        min=10,
+        max=100,
+        step=5,
+        value=40,
+        description="Number of CIs:",
+        style={"description_width": "140px"},
+        layout=widgets.Layout(width="320px"),
+    )
+    redraw_btn = widgets.Button(
+        description="Redraw",
+        tooltip="Draw a new set of random samples with the same slider settings",
+        layout=widgets.Layout(width="120px"),
+    )
+    out = widgets.Output()
+
+    def on_change(change=None):
+        with out:
+            out.clear_output(wait=True)
+            fig, ax = plt.subplots(figsize=(8, 6))
+            _render_many_cis_plot(
+                ax,
+                pop,
+                n_slider.value,
+                level_slider.value,
+                n_int_slider.value,
+            )
+            plt.tight_layout()
+            plt.show()
+
+    def on_redraw(_):
+        on_change()
+
+    n_slider.observe(on_change, names="value")
+    level_slider.observe(on_change, names="value")
+    n_int_slider.observe(on_change, names="value")
+    redraw_btn.on_click(on_redraw)
+
+    box = widgets.VBox([
+        widgets.HBox([n_slider, level_slider]),
+        widgets.HBox([n_int_slider, redraw_btn]),
+        out,
+    ])
+    display(box)
+    on_change()
 
 
 def plot_bootstrap_mean_distribution(boot_means, boot_ci_lower, boot_ci_upper, sample_mean):
